@@ -1,8 +1,8 @@
-from CNN2 import *
+from CNN import *
 from collections import OrderedDict
 from ConfigParser import SafeConfigParser
 import pandas as pd
-import CNN2
+import CNN
 def build_layer(pars):
     pars = dict(pars)
     
