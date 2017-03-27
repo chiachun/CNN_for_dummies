@@ -11,7 +11,7 @@ input -> conv(one 3x3 filter) -> relu -> maxpool(3x3, stride=3) -> softmax
 from Kaggle(https://www.kaggle.com/c/digit-recognizer/data)
 
 ## result
-training samples: the first 1000 entries of 0 and 1
+training samples: the first 100 entries of 0 and 1
 
 test samples: the last 1000 entires of 0 and 1
 
