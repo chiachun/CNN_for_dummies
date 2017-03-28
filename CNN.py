@@ -189,7 +189,8 @@ class softmax_layer:
         self.ny = pars['ny']
       
         
-    def eval(self, y):
+    def eval(self):
+        y = self.y
         # stretch bot
         self.bot = self.botl.top
         bot = self.bot
