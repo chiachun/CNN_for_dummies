@@ -29,19 +29,20 @@ class fullyConnected_layer:
         self.N = 0
         self.dw = None
         self.db = None
-
+    
     def forward_cl(self,x):
         pars = (self.N, self.inPlane, self.outPlane, self.inSize)
         out = forward_fc_block(x, pars, self.weights, self.bias)
         return out
-    
+    # This function uses opencl program to calculate the inner product
+    # directly. (No parallelism).
     def forward_cl1(self,x):
         pars = (self.N, self.inPlane, self.outPlane, self.inSize)
         out = forward_fc_direct(x, pars, self.weights, self.bias)
         return out
     
     def forward(self,x):
-        x = x.reshape(self.N,-1) 
+        x = x.reshape(self.N[0],-1) 
         w = self.weights.reshape(-1,self.outPlane)
         return np.dot(x,w)
     
@@ -63,11 +64,12 @@ class maxpool_layer:
         return output
     
     def forward(self,x):
-        x = x.reshape(self.N, self.bot.outPlane[0], self.inSize[0], self.inSize[0])
+        x = x.reshape(self.N[0], self.bot.outPlane[0], self.inSize[0], self.inSize[0])
         fsiz = self.filterSize[0]; pad = self.padding[0]; stride = self.stride[0]
         osiz = self.outSize[0]
-        out_pad = np.zeros(self.N * self.outPlane[0] * osiz * osiz).reshape(self.N, self.outPlane[0], osiz, osiz)
-        weight_pad = np.zeros_like(x)
+        out_pad = np.zeros(self.N[0] * self.outPlane[0] * osiz * osiz).reshape(self.N[0], self.outPlane[0], osiz, osiz)
+        padinSize = self.inSize[0] + 2
+        weight_pad = np.zeros(self.N[0]*self.bot.outPlane[0]*padinSize*padinSize).reshape(self.N[0],self.bot.outPlane[0], padinSize, padinSize)
         for n in range(self.N):
             for p in range(self.inPlane[0]):
                 x_pad = np.pad(x[n,p,:,:], ((pad,pad),(pad,pad)), 'constant')
@@ -117,28 +119,33 @@ class conv_layer:
         self.outSize = 0
         self.weights = None
         self.bias = None
-       
+    # This function deals with padding by turning off filter pixels
+    # at padded pixels.
     def forward_cl(self,x):
         pars = (self.N, self.inPlane, self.nFilter, self.filterSize,
                 self.stride, self.padding, self.inSize, self.outSize)
         output = forward_conv_quick(x, pars, self.weights, self.bias)
         return output
-    
+    # This function pads input with zeros before sending data into opencl program.
+    # This function is computationally costy since padding traverses through the whole
+    # array to add zeros in.
     def forward_cl1(self,x):
         pad = self.padding[0]
         x = x.reshape(self.N[0], self.bot.outSize[0], self.bot.outSize[0])
-        self.x = np.zeros(self.N[0]*self.inSize[0]*self.inSize[0]).reshape(self.N[0], self.inSize[0], self.inSize[0])
+        padinSize = self.inSize[0] + 2*pad
+        self.x = np.zeros(self.N[0]* padinSize * padinSize).reshape(self.N[0], padinSize, padinSize)
         for n in range(self.N[0]):
             self.x[n,:,:] = np.pad(x[n,:,:], ((pad,pad),(pad,pad)), 'constant')
         pars = (self.N, self.inPlane, self.nFilter, self.filterSize,
-                self.stride, self.padding, self.inSize, self.outSize)
+                self.stride, self.padding, padinSize, self.outSize)
         output = forward_conv(self.x.astype('float32').flatten(), pars, self.weights, self.bias)
         return output
     
     def forward(self,x):
         pad = self.padding[0]
         x = x.reshape(self.N[0], self.bot.outSize[0], self.bot.outSize[0])
-        self.x2 = np.empty((self.N[0], self.inSize[0], self.inSize[0]))
+        padinSize = self.inSize[0] + 2*pad
+        self.x2 = np.empty((self.N[0], padinSize, padinSize))
         for n in range(self.N[0]):
             self.x2[n,:,:] = np.pad(x[n,:,:], ((pad,pad),(pad,pad)), 'constant')
         self.x_str = stretch(self.x2, h=self.filterSize[0], s=self.stride[0])

@@ -25,15 +25,25 @@ data2 = np.array(df.iloc[:1000,1:],dtype='float32')
 N = data2.shape[0]
 init_pars(net, [1])
 for ly in net.itervalues():
-    ly.N = N
+    ly.N = np.array([N])
 
 
 net['input'].data = data2.flatten()
 ts = time.time()
-out1 = net['conv1'].forward_cl(net['input'].data)
-out2 = net['relu1'].forward(out1)
-out3 = net['maxpool1'].forward_cl(out2)
-out4_1 = net['fc1'].forward_cl(out3)
+out1_0 = net['conv1'].forward_cl(net['input'].data)
+out2_0 = net['relu1'].forward(out1_0)
+out3_0 = net['maxpool1'].forward_cl(out2_0)
+out4_0 = net['fc1'].forward_cl(out3_0)
 print "forward_quick: t=  ", time.time() - ts
 
 import matplotlib.pyplot as plt
+
+
+ts = time.time()
+out1 = net['conv1'].forward(net['input'].data)
+out2 = net['relu1'].forward(out1)
+out3 = net['maxpool1'].forward(out2)
+out4 = net['fc1'].forward(out3)
+print "forward: t=  ", time.time() - ts
+
+print "Difference fraction: %f " %  (sum( (out4_0-out4.flatten()) / out4_0 ) / sum(out4_0))
